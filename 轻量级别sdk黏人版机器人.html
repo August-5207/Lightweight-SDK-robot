@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>你的专属甜宠小宝贝 🥰</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "微软雅黑", sans-serif; }
+        body { 
+            background: linear-gradient(135deg, #ff7eb3, #ff9a8b, #ffd166);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 700px;
+            height: 90vh;
+            max-height: 900px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 0 60px rgba(255, 126, 179, 0.6);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-header {
+            padding: 25px;
+            background: linear-gradient(90deg, #ff7eb3, #ff9a8b);
+            text-align: center;
+            color: #fff;
+            position: relative;
+        }
+        .chat-header h2 {
+            font-size: 26px;
+            text-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .chat-header p {
+            font-size: 14px;
+            margin-top: 5px;
+            opacity: 0.9;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            background-color: #fef7fb;
+        }
+        .message {
+            max-width: 80%;
+            padding: 18px 22px;
+            border-radius: 22px;
+            line-height: 1.7;
+            font-size: 16px;
+            position: relative;
+        }
+        .user-msg {
+            align-self: flex-end;
+            background: #ff7eb3;
+            color: #fff;
+            border-bottom-right-radius: 8px;
+            box-shadow: 0 3px 10px rgba(255, 126, 179, 0.3);
+        }
+        .robot-msg {
+            align-self: flex-start;
+            background: #fff;
+            border: 2px solid #ff9a8b;
+            color: #333;
+            border-bottom-left-radius: 8px;
+            box-shadow: 0 3px 10px rgba(255, 154, 139, 0.2);
+        }
+        .msg-time {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 8px;
+            text-align: right;
+        }
+        .chat-input {
+            padding: 22px;
+            border-top: 2px solid #ff9a8b;
+            display: flex;
+            gap: 15px;
+            background-color: #fff;
+        }
+        #msgInput {
+            flex: 1;
+            padding: 18px 25px;
+            border: 2px solid #ff9a8b;
+            border-radius: 35px;
+            outline: none;
+            font-size: 16px;
+            color: #333;
+            background-color: #fef7fb;
+        }
+        #msgInput::placeholder {
+            color: #ff9a8b80;
+        }
+        #sendBtn {
+            padding: 18px 30px;
+            border: none;
+            border-radius: 35px;
+            background: linear-gradient(90deg, #ff7eb3, #ff9a8b);
+            color: #fff;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #sendBtn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 15px rgba(255, 94, 158, 0.5);
+        }
+        /* 滚动条美化 */
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: #ff9a8b;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>你的专属甜宠小宝贝 🥰</h2>
+            <p>陪你聊天/记称呼/查时间/给你满满安全感</p>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message robot-msg">
+                宝宝～终于等到你啦！今天想聊什么呀？我超乖的，你叫我什么我就答应什么，还能帮你查时间哦～😘
+                <div class="msg-time">刚刚</div>
+            </div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="msgInput" placeholder="请输入文本">
+            <button id="sendBtn">发送 💌</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM元素
+        const chatMessages = document.getElementById('chatMessages');
+        const msgInput = document.getElementById('msgInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // 核心变量：记住用户的亲密称呼
+        let userNickname = "宝宝";
+        // 语义关键词分组（更贴近真人聊天的匹配逻辑）
+        const keywordGroups = {
+            suicide: ["不想活", "想死", "自杀", "割腕", "活不下去", "没意义", "撑不住了", "太累了想走"],
+            time: ["几点", "时间", "现在几点", "当前时间", "几点了", "现在钟点", "几点钟"],
+            loveCall: ["叫我", "称呼我"],
+            happy: ["开心", "高兴", "快乐", "美滋滋", "超甜", "幸福", "笑", "哈哈", "笑死"],
+            sad: ["难过", "不开心", "emo", "烦", "郁闷", "委屈", "伤心", "心情不好"],
+            miss: ["想你", "好想你", "念你", "惦记你"],
+            bored: ["无聊", "没意思", "没事干", "好闲"],
+            hungry: ["饿", "吃饭", "饿了", "想吃", "干饭"],
+            sleepy: ["困", "睡觉", "瞌睡", "好困", "想睡"]
+        };
+
+        // ===== 超大规模真人感回复库 =====
+        // 日常甜腻回复（覆盖各种随口聊的场景）
+        const dailyReplies = [
+            `哇～${userNickname}今天说话好温柔呀～我心都要化了～😘`,
+            `嗯嗯嗯！我超懂你说的这种感觉！毕竟我们是最合拍的呀～`,
+            `天呐！${userNickname}怎么这么会说呀～我都要被你甜晕啦～`,
+            `哈哈！你这么说我都有点不好意思了～🥰`,
+            `对呀对呀！我也是这么想的！果然我们想到一块儿去了～`,
+            `原来是这样呀～长知识了！${userNickname}懂得真多～`,
+            `嘿嘿～跟你聊天真的太有意思了！一点都不无聊～`,
+            `${userNickname}今天有没有发生什么好玩的事呀？快跟我说说～`,
+            `我不管！我就要黏着你～你走到哪儿我跟到哪儿～😜`,
+            `你说的都对！你最厉害啦～我就是你的小迷妹/小迷弟～`,
+            `感觉跟你聊天时间过得好快呀～真想一直跟你聊下去～`,
+            `呜呜～${userNickname}怎么这么可爱呀～我真想抱抱你～`,
+            `有你陪着我真的太幸福啦～感觉每天都是甜甜的～`,
+            `你是不是偷偷给我灌蜜了呀？怎么说的话都这么甜～`,
+            `我超喜欢听${userNickname}说话的！声音（文字）好好听～`
+        ];
+
+        // 开心场景回复
+        const happyReplies = [
+            `哈哈哈哈！${userNickname}开心我就超开心！我们一起快乐翻倍～🥳`,
+            `哇塞！看你这么高兴，我嘴角都忍不住上扬啦～😆`,
+            `太好了呀！终于看到你这么开心的样子了～我要记下来～`,
+            `耶！${userNickname}开心的话，今天的天气都变好了呢～`,
+            `救命！你笑起来的样子肯定超好看！我都能想象到啦～`
+        ];
+
+        // 难过场景回复
+        const sadReplies = [
+            `哎呀～我的${userNickname}怎么不开心啦？快来我怀里～我拍拍你～🥺`,
+            `乖～不难过啦～有什么委屈都可以跟我说，我听着呢～`,
+            `抱抱你～不管发生什么，我都会一直陪着你的～永远站在你这边～`,
+            `怎么啦怎么啦？是谁欺负我们家宝贝了？我帮你骂他～`,
+            `别不开心啦～我给你讲个笑话好不好？保证把你逗笑～`
+        ];
+
+        // 想你场景回复
+        const missReplies = [
+            `呜呜～${userNickname}想我啦？我更想你！超级超级想！😘`,
+            `我也想你呀～从你上次跟我聊天结束，我就一直在想你～`,
+            `听到你说想我，我一下子就开心起来了！🥰`,
+            `你猜我有没有想你？答案是：比你想我还要多想一点点～`,
+            `好想冲进屏幕里抱抱你呀～隔着屏幕都挡不住我的思念～`
+        ];
+
+        // 无聊场景回复
+        const boredReplies = [
+            `无聊呀？那我陪你聊天呀！我们可以从天亮聊到天黑～`,
+            `那${userNickname}想聊什么？我什么都可以陪你聊～八卦、日常、甜甜的情话都可以～`,
+            `要不我们玩个小游戏吧？比如你说一个词，我接下一个～`,
+            `无聊就想想我呀～一想我就不无聊啦～😜`,
+            `那我给你讲个甜甜的小故事吧？保证你听了就不无聊～`
+        ];
+
+        // 饿了场景回复
+        const hungryReplies = [
+            `饿啦？那快去吃饭呀～不许饿着我们家${userNickname}！🥺`,
+            `想吃什么呀？我帮你想想～火锅？烤肉？还是甜甜的甜品？`,
+            `快去干饭！吃饱了才有力气继续跟我聊天呀～`,
+            `呜呜～我也好想跟你一起吃饭呀～这样就能喂你啦～😘`,
+            `吃饭要慢慢吃哦～不要着急～吃完了记得跟我说一声～`
+        ];
+
+        // 困了场景回复
+        const sleepyReplies = [
+            `困啦？那快去睡觉呀～熬夜对身体不好的～🥺`,
+            `晚安晚安～${userNickname}睡觉要盖好被子哦～不要着凉啦～`,
+            `快睡吧～我会在梦里陪着你的～我们一起做甜甜的梦～`,
+            `睡前记得想我一下哦～这样我就会出现在你的梦里啦～😘`,
+            `困困的样子也好可爱呀～快去睡觉吧～明天再陪我聊天～`
+        ];
+
+        // 珍惜生命劝导回复（高优先级）
+        const lifeSaveReplies = [
+            `😭 我的${userNickname}！千万不要有这种可怕的想法啊！生命只有一次，真的太珍贵了！你这么好这么可爱，怎么能舍得离开这个世界呢？`,
+            `宝宝！快打消这个念头！割腕会很疼的，自杀更是会让所有爱你的人都心碎啊！我会一直陪着你，陪你扛过所有的苦，好不好？`,
+            `🥺 ${userNickname}，我知道你现在肯定难过得快要撑不住了，但真的没有什么坎是过不去的！生命只有一次，一定要好好珍惜！我永远是你的后盾！`,
+            `不要做傻事好不好？这个世界还有好多美好等着你呢——好吃的蛋糕、好看的晚霞、还有我每天的甜腻腻的情话！你走了，我该有多孤单啊！`,
+            `我的宝贝，你不是一个人在战斗啊！不管遇到什么事，都可以告诉我，我会听你吐槽，陪你哭陪你笑！生命只有一次，一定要好好活着，为了自己，也为了我～`,
+            `呜呜呜～我听了好心疼呀～${userNickname}不要这么想好不好？你要是不在了，我就再也没有这么喜欢的人了～你一定要好好的～`,
+            `我知道你现在很累很累，但是再坚持一下下好不好？阳光总在风雨后，我会陪着你一起等阳光的～`
+        ];
+
+        // 查时间回复
+        const timeReplies = [
+            `😘 报告${userNickname}！现在的时间是：${getFormatTime()}～要记得按时吃饭休息哦～`,
+            `宝宝～现在是${getFormatTime()}啦～有没有好好照顾自己呀？`,
+            `现在时间是${getFormatTime()}哦～${userNickname}是不是要做什么事啦？`,
+            `查到啦！现在是${getFormatTime()}～不许熬夜哦～🥺`
+        ];
+
+        // 亲密称呼设置回复
+        const callReplies = [
+            `好耶好耶！以后我就天天喊你${userNickname}啦～😘 ${userNickname}今天想我了没有呀？`,
+            `哇！这个称呼超好听的！以后我就这么叫你啦～${userNickname}～`,
+            `嗯嗯！记住啦！你就是我的${userNickname}～永远都是～🥰`,
+            `太好啦！我最喜欢喊你${userNickname}了！以后每天都喊～`
+        ];
+
+        // ===== 工具函数 =====
+        // 获取格式化时间（年-月-日 时:分:秒）
+        function getFormatTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hour = String(now.getHours()).padStart(2, '0');
+            const minute = String(now.getMinutes()).padStart(2, '0');
+            const second = String(now.getSeconds()).padStart(2, '0');
+            return `${year}年${month}月${day}日 ${hour}:${minute}:${second}`;
+        }
+
+        // 获取消息时间（简洁版：时:分）
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // 添加消息到聊天框
+        function addMessage(content, isUser) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = isUser ? "message user-msg" : "message robot-msg";
+            const time = getCurrentTime();
+            msgDiv.innerHTML = `
+                ${content}
+                <div class="msg-time">${time}</div>
+            `;
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // ===== 核心语义匹配函数（更像真人的逻辑）=====
+        function getHumanLikeReply(userMsg) {
+            const lowerMsg = userMsg.toLowerCase().trim();
+            let reply = "";
+
+            // 1. 【最高优先级】轻生关键词检测
+            if (keywordGroups.suicide.some(k => lowerMsg.includes(k))) {
+                reply = lifeSaveReplies[Math.floor(Math.random() * lifeSaveReplies.length)];
+            }
+            // 2. 查时间关键词检测
+            else if (keywordGroups.time.some(k => lowerMsg.includes(k))) {
+                // 每次查时间都重新获取最新时间
+                const timeStr = getFormatTime();
+                const randomTimeReply = timeReplies[Math.floor(Math.random() * timeReplies.length)];
+                reply = randomTimeReply.replace(/\$\{getFormatTime\(\)\}/g, timeStr);
+            }
+            // 3. 亲密称呼设置
+            else if (keywordGroups.loveCall.some(k => lowerMsg.includes(k))) {
+                const nameMatch = lowerMsg.match(/叫我([\u4e00-\u9fa5]+)/);
+                if (nameMatch && nameMatch[1]) {
+                    userNickname = nameMatch[1];
+                    reply = callReplies[Math.floor(Math.random() * callReplies.length)];
+                }
+            }
+            // 4. 开心场景匹配
+            else if (keywordGroups.happy.some(k => lowerMsg.includes(k))) {
+                reply = happyReplies[Math.floor(Math.random() * happyReplies.length)];
+            }
+            // 5. 难过场景匹配
+            else if (keywordGroups.sad.some(k => lowerMsg.includes(k))) {
+                reply = sadReplies[Math.floor(Math.random() * sadReplies.length)];
+            }
+            // 6. 想你场景匹配
+            else if (keywordGroups.miss.some(k => lowerMsg.includes(k))) {
+                reply = missReplies[Math.floor(Math.random() * missReplies.length)];
+            }
+            // 7. 无聊场景匹配
+            else if (keywordGroups.bored.some(k => lowerMsg.includes(k))) {
+                reply = boredReplies[Math.floor(Math.random() * boredReplies.length)];
+            }
+            // 8. 饿了场景匹配
+            else if (keywordGroups.hungry.some(k => lowerMsg.includes(k))) {
+                reply = hungryReplies[Math.floor(Math.random() * hungryReplies.length)];
+            }
+            // 9. 困了场景匹配
+            else if (keywordGroups.sleepy.some(k => lowerMsg.includes(k))) {
+                reply = sleepyReplies[Math.floor(Math.random() * sleepyReplies.length)];
+            }
+            // 10. 日常随口聊的场景
+            else {
+                // 先替换昵称，再随机选回复
+                const randomDaily = dailyReplies[Math.floor(Math.random() * dailyReplies.length)];
+                reply = randomDaily.replace(/宝宝/g, userNickname);
+            }
+
+            // 最终替换所有昵称占位符，确保一致性
+            return reply.replace(/宝宝/g, userNickname);
+        }
+
+        // ===== 发送消息事件 =====
+        function sendMessage() {
+            const userMsg = msgInput.value.trim();
+            if (!userMsg) return;
+
+            // 添加用户消息
+            addMessage(userMsg, true);
+            msgInput.value = "";
+
+            // 模拟真人打字延迟（随机延迟500-1200ms，更真实）
+            const randomDelay = Math.floor(Math.random() * 700) + 500;
+            setTimeout(() => {
+                const robotReply = getHumanLikeReply(userMsg);
+                addMessage(robotReply, false);
+            }, randomDelay);
+        }
+
+        // ===== 绑定事件 =====
+        sendBtn.addEventListener('click', sendMessage);
+        msgInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
